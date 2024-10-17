@@ -1,0 +1,87 @@
+#Install packages
+install.packages("tm")
+install.packages("SnowballC")
+install.packages("wordcloud")
+install.packages("RColorBrewer")
+install.packages("syuzhet")
+install.packages("ggplot2")
+
+#Load Packages
+library("tm")
+library ("SnowballC")
+library ("wordcloud")
+library ("RColorBrewer")
+library ("syuzhet")
+library ("ggplot2")
+library(readr)
+
+#Import Data
+#File>Import Dataset>From text(readr)>file path>Delimiter:Cemocolon>Import
+
+#Load & Read csv file
+text <- readLines(file.choose())
+MyDoc <- VCorpus(x = VectorSource(text), readerControl = list(reader=readPlain, language="en"))
+
+#Clean Data
+toSpace <- content_transformer(function (x, pattern) gsub(pattern, " ", x))
+MyDoc <- tm_map(MyDoc, toSpace, "/")
+MyDoc <- tm_map(MyDoc, toSpace, "@")
+MyDoc <- tm_map(MyDoc, toSpace, "\\|")
+MyDoc <- tm_map(MyDoc, content_transformer(tolower))
+MyDoc <- tm_map(MyDoc, removeNumbers)
+MyDoc <- tm_map(MyDoc, removeWords, stopwords("english"))
+MyDoc <- tm_map(MyDoc, removePunctuation)
+MyDoc <- tm_map(MyDoc, stripWhitespace)
+MyDoc <- tm_map(MyDoc, stemDocument)
+
+#term_document
+MyDoc_dtm <- TermDocumentMatrix(MyDoc)
+dtm_m <- as.matrix(MyDoc_dtm)
+dtm_v <- sort(rowSums(dtm_m),decreasing=TRUE)
+dtm_d <- data.frame(word = names(dtm_v),freq=dtm_v)
+head(dtm_d, 10)
+
+#Optimazation term-documnet
+barplot(dtm_d[1:10, ]$freq, las = 2, names.arg = dtm_d[1:10, ]$word,col = "pink", main = "Top 10 most frequent words",ylab = "Word Frequencies")
+
+#Generate & Optimization Word Cloud
+wordcloud(words = dtm_d$word, freq = dtm_d$freq, min.freq = 10, max.words=200, random.order=FALSE, rot.per=0.40,colors=brewer.pal(6, "Dark2"))
+
+#Associate Words
+findAssocs(MyDoc_dtm, terms = c("good", "palestin","stop","eden"), corlimit = 0.25)
+
+#Sentiment Scores
+syuzhet_vector <- get_sentiment(text, method="syuzhet")
+summary(syuzhet_vector)
+
+#Sentiment Classification
+d <- get_nrc_sentiment(text)
+
+#Create diagramms for Sentiment Oprimization
+td <- data.frame(t(d))
+td_new <- data.frame(rowSums(td[2:253]))
+names(td_new)[1] <- "Count"
+td_new <- cbind("Sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2 <- td_new[1:10, ]
+quickplot(Sentiment, data=td_new2, weight=Count,    geom="bar", fill=Sentiment, ylab="Count")+ggtitle("Survey Sentiments"
+
+barplot(sort(colSums(prop.table(d[, 1:10]))),horiz = TRUE,cex.names = 0.7,las = 1,main = "Emotions in Text", xlab = "Percentage")
+
+barplot(sort(colSums(prop.table(d[, 1:10]))),las = 2,col = rainbow(10),ylab = "Count",main = "Sentiment Scores YouTube Comments")
+
+#Clustering
+install.packages("cluster")
+install.packages("factoextra")
+
+library("cluster")
+library("factoextra")
+
+mydata <- scale(d)
+fviz_nbclust(mydata, kmeans, method = "gap_stat")
+
+#Visualize Clusters
+set.seed(123)   //for reproducibility
+km.res <- kmeans(mydata, 5, nstart = 25)
+
+fviz_cluster(km.res, data = mydata, palette = "jco", ggtheme = theme_minimal())
